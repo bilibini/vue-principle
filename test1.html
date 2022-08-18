@@ -1,0 +1,237 @@
+<div id="app"></div>
+<script>
+function h(tag,props,children){
+    // 返回虚拟dom
+    return {
+        tag,
+        props,
+        children
+    }
+}
+
+function mount(vnode,container){
+    // 将虚拟dom挂载到dom上
+    if(typeof(vnode)==='string'){
+        vnode={
+            text:vnode
+        }
+    }
+    let el=vnode.el=vnode.tag?document.createElement(vnode.tag):document.createElement('span')
+    
+    if(vnode.text){
+        el.textContent=vnode.text
+    }else{
+        if(vnode.props){
+            for(const key in vnode.props){
+                const value=vnode.props[key]
+                el.setAttribute(key,value)
+            }
+        }
+        
+        if(vnode.children){
+            if(typeof(vnode.children)==='string'){
+                el.textContent=vnode.children
+            }else{
+                if(vnode.children.tag){
+                    mount(vnode.children,el)
+                }else{
+                    vnode.children.forEach(child => {
+                        mount(child,el)
+                    })
+                }
+            }
+        }
+    }
+    container.appendChild(el)
+    console.log(vnode)
+}
+
+function patch2(n1,n2){
+    if(typeof(n1)==='string'||typeof(n2)==='string'){
+        
+    }
+    if(n1.tag===n2.tag){
+        const el=n2.el=n1.el
+        // props
+        const oldProps=n1.props||{}
+        const newProps=n2.props||{}
+        for(const key in newProps){
+            const newValue=newProps[key]
+            const oldValue=oldProps[key]
+            if(newValue!==oldValue){
+                el.setAttribute(key,newValue)
+            }
+        }
+        for(const key in oldProps){
+            if(!(key in newProps)){
+                el.removeAttribute(key)
+            }
+        }
+        // children
+        const oldChildren=n1.children
+        const newChildren=n2.children
+        if(typeof(newChildren)==='string'){
+            if(typeof(oldChildren)==='string'){
+                if(newChildren!==oldChildren){
+                    el.textContent=newChildren
+                }
+            }else{
+                el.textContent=newChildren
+            }
+        }else{
+            if(typeof(oldChildren)==='string'){
+                el.innerHTML=''
+                newChildren.forEach(child=>{
+                    mount(child,el)
+                })
+            }else if(typeof(oldChildren)==='undefined'||typeof(newChildren)==='undefined'){
+                
+                if(newChildren){
+                    if(typeof(newChildren)==='string'){
+                        el.textContent=newChildren
+                    }else{
+                        newChildren.forEach(child=>{
+                            el.innerHTML=''
+                            mount(child,el)
+                        })
+                    }
+                }
+            }else{
+                const commonLength=Math.min(oldChildren.length,newChildren.length)
+                for(let i=0;i<commonLength;i++){
+                    if(typeof(oldChildren[i])==='string'||typeof(newChildren[i])==='string'){
+                        console.log(oldChildren[i],newChildren[i])
+                        if(typeof(newChildren[i])==='string'){
+                            if(oldChildren[i].el){
+                                el.removeChild(oldChildren[i].el)
+                                mount(newChildren[i],el)
+                                // console.log(el)
+                            }else{
+                                el.textContent=newChildren[i]
+                                // console.log(el)
+                            }
+                        }
+                        // mount(newChildren[i],el)
+                    }else{
+                        patch(oldChildren[i],newChildren[i])
+                    }
+                }
+                if(newChildren.length>oldChildren.length){
+                    newChildren.slice(oldChildren.length).forEach(child=>{
+                        mount(child,el)
+                    })
+                }else{
+                    oldChildren.slice(newChildren.length).forEach(child=>{
+                        if(typeof(child)==='string'){
+                            el.innerHTML=''
+                        }else{
+                            el.removeChild(child.el)
+                        }
+                    })
+                }
+            }
+
+        }
+
+    }
+}
+
+function patch(n1,n2){
+    const el=n2.el=n1.el
+    // props
+    if(n2.props){
+        const newProps=n2.props
+        const oldProps=n1.props
+        if(n1.props){
+            Object.keys(oldProps).forEach((key)=>{
+                if(!key in newProps){
+                    el.removeAttribute(key)
+                }
+            })
+        }
+        for(const key in newProps){
+            if((!oldProps)||oldProps[key]!=newProps[key]){
+                el.setAttribute(key,newProps[key])
+            }
+        }
+    }
+    //children
+    if(n2.children){
+        const newChildren=n2.children
+        const oldChildren=n1.children
+        if(n1.children){
+            if(typeof(newChildren)==='string'){
+                el.textContent=newChildren
+            }else{
+                if(typeof(oldChildren)==='string'){
+                    el.innerHTML=''
+                    oldChildren.forEach(child=>{
+                        mount(child,el)
+                    })
+                }else{
+                    const commonLength = Math.min(oldChildren.length, newChildren.length)
+                    for(let i=0;i<commonLength;i++){
+                        patch(oldChildren[i],newChildren[i])
+                    }
+                    if(oldChildren.length>newChildren.length){
+                        oldChildren.forEach(child=>{
+                            if(child.el){
+                                el.removeChild(child.el)
+                            }else{
+                                console.log(child)
+                                
+                            }
+                        })
+                    }else{
+                        newChildren.slice(commonLength).forEach(child=>{
+                            mount(child,el)
+                        })
+                    }
+                }
+            }
+        }
+    }
+}
+
+let vnode=h('div',null,[
+    'hello',
+    h('span',{class:'green'},'world'),
+    h('div',{class:'box'},[
+        h('h1',null,'大标题'),
+        h('h2',{class:'green'},'副标题'),
+        h('div',{class:'box'},[
+            h('h1',{class:'red'},'子窗口的大标题'),
+            '普通文本'
+        ])
+    ])
+])
+
+mount(vnode,document.getElementById('app'))
+
+let vnode2=h('div',{class:'box'},[
+    'hello',
+    h('span',{class:'red'},'world'),
+    h('div',{class:'box'},[
+        h('h1',null,'更改后的大标题'),
+        h('h2',{class:'red'},'更改后的副标题'),
+        h('div',{class:'box'},[
+            h('h1',{class:'green'},'更改后的子窗口的大标题'),
+            '普通文本'
+        ])
+    ])
+])
+
+patch(vnode,vnode2)
+</script>
+<style>
+.red{
+    color: red;
+}
+.green{
+    color: green;
+}
+.box{
+    padding: 10px;
+    border: 10px solid slateblue;
+}
+</style>
